@@ -2,6 +2,27 @@ import urllib
 import urllib2
 from cookielib import CookieJar
 
+import signal
+import time
+ 
+class Timeout():
+    """Timeout class using ALARM signal."""
+    class Timeout(Exception):
+        pass
+ 
+    def __init__(self, sec):
+        self.sec = sec
+ 
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.raise_timeout)
+        signal.alarm(self.sec)
+ 
+    def __exit__(self, *args):
+        signal.alarm(0)    # disable alarm
+ 
+    def raise_timeout(self, *args):
+        raise Timeout.Timeout()
+
 def saveURLToFile(url, fname):
   completed = 0
   while completed < 20:
@@ -22,12 +43,19 @@ def saveURLToFile(url, fname):
 
 lines = open("urls.txt").read().splitlines()
 
-done = 70000
+done = 120000
+end = 124733
 
-for curURL in lines[done:80000]:
+for curURL in lines[done:end]:
   breakURL = curURL.split("/")
   fname = "html/" + "_".join(breakURL[3:])
   print fname
-  saveURLToFile(curURL, fname)
-  done += 1
-  print "Finished:", done
+  try:
+    with Timeout(10):
+      saveURLToFile(curURL, fname)
+      done += 1
+      print "Finished:", done
+  except Timeout.Timeout:
+    print "Timeout Error", curURL
+    with open("log.txt", "a") as logfile:
+      logfile.write(curURL + "\n")
